@@ -1,16 +1,6 @@
-import re
-import json
 import numpy as np
-import yfinance as yf
 import pandas as pd
-import pandas_datareader as pdr
-import datetime as dt
-from bs4 import BeautifulSoup
-import requests
-import plotly.express as px
-from plotly.subplots import make_subplots
-from io import BytesIO
-from main import totalRevenue, basicDCF
+from variables import totalRevenue, basicDCF
 
 
 def CreateDCFModel(sheetName, avg_NImargin, avg_FCFtoNI, sharesOutstanding,

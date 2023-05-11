@@ -7,8 +7,7 @@ import pandas_datareader as pdr
 import datetime as dt
 from bs4 import BeautifulSoup
 import requests
-from main import ticker, tenYTreasury, beta, marketReturn
-from DCF import GetLastClose
+from variables import ticker, tenYTreasury, beta, marketReturn
 
 
 def GetBeta(stocks, start, end):

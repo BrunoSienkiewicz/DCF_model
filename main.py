@@ -10,62 +10,9 @@ import requests
 import plotly.express as px
 from plotly.subplots import make_subplots
 from io import BytesIO
-from scrape_data import *
-from DCF import *
-
-
-# Assumptions
-yearsToPredict = 5
-marketReturn = 0.1
-tenYTreasury = GetLastClose('^TNX')/100
-GDP = 0.03
-
-# Global Variables
-ticker = ""
-path = 'E:\\Python\\DCF_model\Models\\'
-endDate = dt.datetime.now()
-startDate = endDate - dt.timedelta(days=365 * yearsToPredict)
-stocks = [ticker, '^GSPC']
-beta = GetBeta(stocks, startDate, endDate)
-
-columns = [str(i) for i in range(1,yearsToPredict+1)]
-columns.append('TV')
-basicDCF = pd.DataFrame(data=None, columns=columns)
-
-statsColumns = ['Average Net Income Margin', 'Average Total Revenue Growth','Average FCF Growth', 'WACC', 'Fair Share Price']
-Stats = pd.DataFrame(data=None, columns=statsColumns)
-
-# Key Statistics
-ebit = 0
-incomeBeforeTax = 0
-taxExpense = 0
-taxRate = 0
-DA = 0
-CapEx = 0
-FCF = 0
-NI = 0
-FCFtoNI = 0
-avg_FCFtoNI = 0
-totalRevenue = 0
-NImargin = 0
-avg_NImargin = 0
-avg_TR_est1 = 0
-avg_TR_est2 = 0
-low_TR_est1 = 0
-low_TR_est2 = 0
-high_TR_est1 = 0
-high_TR_est2 = 0
-shortTermDebt = 0
-longTermDebt = 0
-costOfDebt = 0
-sharesOutstanding = 0
-equityValue = 0
-debtValue = 0
-debtWeight = 0 
-equityWeight = 0
-med_taxRate = 0
-CAPM = 0
-WACC = 0
+from scrape_data import scrape_data, get_key_stats, get_ticker_financials, GetBeta, GetLastClose
+from DCF import create_sample_models
+from variables import *
 
 
 def save_to_excel(modelList, bs, fin, cf):
@@ -126,6 +73,9 @@ def main(args):
     
     ticker = args[0]
     path = args[1]
+
+    tenYTreasury = GetLastClose('^TNX')/100
+    beta = GetBeta(stocks, startDate, endDate)
 
     defaultKeyStatistics, financialData, analystPrediction = scrape_data(ticker)
 
