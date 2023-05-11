@@ -139,4 +139,6 @@ def main(args):
     modelList = create_sample_models()
     save_to_excel(modelList, bs, fin, cf, Stats, ticker, path)
 
-    
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
