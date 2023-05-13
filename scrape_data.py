@@ -3,11 +3,44 @@ import json
 import numpy as np
 import yfinance as yf
 import pandas as pd
-import pandas_datareader as pdr
+from pandas_datareader import data as pdr
 import datetime as dt
 from bs4 import BeautifulSoup
 import requests
-from variables import ticker, tenYTreasury, beta, marketReturn
+from main import tenYTreasury, beta, marketReturn
+
+
+# Key Statistics
+ebit = 0
+incomeBeforeTax = 0
+taxExpense = 0
+taxRate = 0
+DA = 0
+CapEx = 0
+FCF = 0
+NI = 0
+FCFtoNI = 0
+avg_FCFtoNI = 0
+totalRevenue = 0
+NImargin = 0
+avg_NImargin = 0
+avg_TR_est1 = 0
+avg_TR_est2 = 0
+low_TR_est1 = 0
+low_TR_est2 = 0
+high_TR_est1 = 0
+high_TR_est2 = 0
+shortTermDebt = 0
+longTermDebt = 0
+costOfDebt = 0
+sharesOutstanding = 0
+equityValue = 0
+debtValue = 0
+debtWeight = 0 
+equityWeight = 0
+med_taxRate = 0
+CAPM = 0
+WACC = 0
 
 
 def GetBeta(stocks, start, end):
@@ -17,7 +50,7 @@ def GetBeta(stocks, start, end):
     log_returns = np.log(stockData / stockData.shift())
     covMatrix = log_returns.cov()
     var = log_returns['^GSPC'].var()
-    beta = covMatrix.loc[ticker, '^GSPC'] / var
+    beta = covMatrix.loc[stocks[0], '^GSPC'] / var
 
     return beta
 
@@ -53,7 +86,7 @@ def scrape_data():
     return defaultKeyStatistics, financialData, analystPrediction
 
 
-def get_ticker_financials():
+def get_ticker_financials(ticker):
     yf_ticker = yf.Ticker(ticker)
     bs = pd.DataFrame(yf_ticker.get_balance_sheet())
     fin = pd.DataFrame(yf_ticker.get_financials())
@@ -62,11 +95,38 @@ def get_ticker_financials():
     return bs, fin, cf
 
 
-def get_key_stats(bs, fin, cf, defaultKeyStatistics, financialData, analystPrediction,
-                  ebit, incomeBeforeTax, taxExpense, taxRate, DA, CapEx, FCF, NI, FCFtoNI, avg_FCFtoNI, totalRevenue,
-                  NImargin, avg_NImargin, avg_TR_est1, avg_TR_est2, low_TR_est1, low_TR_est2, high_TR_est1,
-                  high_TR_est2, shortTermDebt, longTermDebt, costOfDebt, sharesOutstanding, equityValue, debtValue,
-                  debtWeight, equityWeight, med_taxRate, CAPM, WACC):
+def get_key_stats(bs, fin, cf, ticker):
+    global ebit
+    global incomeBeforeTax
+    global taxExpense
+    global taxRate
+    global DA
+    global CapEx
+    global FCF
+    global NI
+    global FCFtoNI
+    global avg_FCFtoNI
+    global totalRevenue
+    global NImargin
+    global avg_NImargin
+    global avg_TR_est1
+    global avg_TR_est2
+    global low_TR_est1
+    global low_TR_est2
+    global high_TR_est1
+    global high_TR_est2
+    global shortTermDebt
+    global longTermDebt
+    global costOfDebt
+    global sharesOutstanding
+    global equityValue
+    global debtValue
+    global debtWeight
+    global equityWeight
+    global med_taxRate
+    global CAPM
+    global WACC
+
     ebit = fin.loc['Ebit', :]
     incomeBeforeTax = fin.loc['Income Before Tax', :]
     taxExpense = fin.loc['Income Tax Expense', :]
@@ -90,12 +150,13 @@ def get_key_stats(bs, fin, cf, defaultKeyStatistics, financialData, analystPredi
     fin = fin.append(NImargin)
     cf = cf.append(FCF)
 
-    avg_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['avg']['raw']
-    avg_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['avg']['raw']
-    low_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
-    low_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
-    high_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
-    high_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
+    # avg_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['avg']['raw']
+    # avg_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['avg']['raw']
+    # low_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
+    # low_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
+    # high_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
+    # high_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
+    avg_TR_est1 = yf.Ticker(ticker).revenue_forecasts
 
 
     try:
@@ -109,9 +170,11 @@ def get_key_stats(bs, fin, cf, defaultKeyStatistics, financialData, analystPredi
     else:
         costOfDebt = np.median(costOfDebt)
 
-    sharesOutstanding = defaultKeyStatistics['sharesOutstanding']['raw']
+    # sharesOutstanding = defaultKeyStatistics['sharesOutstanding']['raw']
+    sharesOutstanding = yf.Ticker(ticker).info['sharesOutstanding']
     equityValue = sharesOutstanding * GetLastClose(ticker)
-    debtValue = financialData['totalDebt']['raw']
+    # debtValue = financialData['totalDebt']['raw']
+    debtValue = yf.Ticker(ticker).info['totalDebt']
 
     debtWeight = debtValue / (debtValue+equityValue)
     equityWeight = equityValue / (debtValue+equityValue)

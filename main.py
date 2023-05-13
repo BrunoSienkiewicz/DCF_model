@@ -10,9 +10,31 @@ import requests
 import plotly.express as px
 from plotly.subplots import make_subplots
 from io import BytesIO
-from scrape_data import scrape_data, get_key_stats, get_ticker_financials, GetBeta, GetLastClose
+from scrape_data import scrape_data, get_key_stats, get_ticker_financials, GetBeta, GetLastClose, totalRevenue, NI, FCF
 from DCF import create_sample_models
-from variables import *
+
+
+# Assumptions
+yearsToPredict = 5
+marketReturn = 0.1
+tenYTreasury = 0
+GDP = 0.03
+
+# Global Variables
+ticker = ""
+# path = 'E:\\Python\\DCF_model\Models\\'
+path = '.\\Models\\'
+endDate = dt.datetime.now()
+startDate = endDate - dt.timedelta(days=365 * yearsToPredict)
+stocks = []
+beta = 0
+
+columns = [str(i) for i in range(1,yearsToPredict+1)]
+columns.append('TV')
+basicDCF = pd.DataFrame(data=None, columns=columns)
+
+statsColumns = ['Average Net Income Margin', 'Average Total Revenue Growth','Average FCF Growth', 'WACC', 'Fair Share Price']
+Stats = pd.DataFrame(data=None, columns=statsColumns)
 
 
 def save_to_excel(modelList, bs, fin, cf):
@@ -67,24 +89,26 @@ def save_to_excel(modelList, bs, fin, cf):
 
 
 def main(args):
-    if len(args) != 2:
-        print("Usage: python DCF.py <ticker> <path>")
-        sys.exit(1)
+    # if len(args) != 1:
+    #     print("Usage: python DCF.py <ticker>")
+    #     sys.exit(1)
     
-    ticker = args[0]
-    path = args[1]
+    # global ticker
+    # ticker = args[0]
 
+    global ticker
+    ticker = 'MSFT'
+    yf.pdr_override()
+
+    global tenYTreasury
+    global beta
+    global stocks
+    stocks = [ticker, '^GSPC']
     tenYTreasury = GetLastClose('^TNX')/100
     beta = GetBeta(stocks, startDate, endDate)
 
-    defaultKeyStatistics, financialData, analystPrediction = scrape_data(ticker)
-
-    bs, fin, cf = get_ticker_financials(ticker, path)
-    get_key_stats(bs, fin, cf, defaultKeyStatistics, financialData, analystPrediction,
-                  ebit, incomeBeforeTax, taxExpense, taxRate, DA, CapEx, FCF, NI, FCFtoNI, avg_FCFtoNI, totalRevenue,
-                  NImargin, avg_NImargin, avg_TR_est1, avg_TR_est2, low_TR_est1, low_TR_est2, high_TR_est1,
-                  high_TR_est2, shortTermDebt, longTermDebt, costOfDebt, sharesOutstanding, equityValue, debtValue,
-                  debtWeight, equityWeight, med_taxRate, CAPM, WACC)
+    bs, fin, cf = get_ticker_financials(ticker)
+    get_key_stats(bs, fin, cf, ticker)
     
     modelList = create_sample_models()
     save_to_excel(modelList, bs, fin, cf, Stats, ticker, path)
