@@ -2,12 +2,12 @@ import re
 import json
 import numpy as np
 import yfinance as yf
+import yahooquery as yq
 import pandas as pd
 from pandas_datareader import data as pdr
 import datetime as dt
 from bs4 import BeautifulSoup
 import requests
-from main import tenYTreasury, beta, marketReturn
 
 
 # Key Statistics
@@ -95,7 +95,16 @@ def get_ticker_financials(ticker):
     return bs, fin, cf
 
 
-def get_key_stats(bs, fin, cf, ticker):
+def get_ticker_financials_yq(ticker):
+    yq_ticker = yq.Ticker(ticker)
+    bs = pd.DataFrame(yq_ticker.balance_sheet()).T
+    fin = pd.DataFrame(yq_ticker.income_statement()).T
+    cf = pd.DataFrame(yq_ticker.cash_flow()).T
+
+    return bs, fin, cf
+
+
+def get_key_stats(bs, fin, cf, ticker, CAPM):
     global ebit
     global incomeBeforeTax
     global taxExpense
@@ -124,7 +133,6 @@ def get_key_stats(bs, fin, cf, ticker):
     global debtWeight
     global equityWeight
     global med_taxRate
-    global CAPM
     global WACC
 
     ebit = fin.loc['Ebit', :]
@@ -156,8 +164,6 @@ def get_key_stats(bs, fin, cf, ticker):
     # low_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
     # high_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
     # high_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
-    avg_TR_est1 = yf.Ticker(ticker).revenue_forecasts
-
 
     try:
         shortTermDebt = bs.loc['Short Long Term Debt', :]
@@ -184,5 +190,76 @@ def get_key_stats(bs, fin, cf, ticker):
     else:
         med_taxRate = np.median(taxRate)
 
-    CAPM = tenYTreasury + beta*(marketReturn - tenYTreasury)
+    WACC = debtWeight*costOfDebt*(1-med_taxRate) + equityWeight*CAPM
+
+
+def get_key_stats_yq(bs, fin, cf, ticker, CAPM):
+    global ebit
+    global incomeBeforeTax
+    global taxExpense
+    global taxRate
+    global DA
+    global CapEx
+    global FCF
+    global NI
+    global FCFtoNI
+    global avg_FCFtoNI
+    global totalRevenue
+    global NImargin
+    global avg_NImargin
+    global avg_TR_est1
+    global avg_TR_est2
+    global low_TR_est1
+    global low_TR_est2
+    global high_TR_est1
+    global high_TR_est2
+    global shortTermDebt
+    global longTermDebt
+    global costOfDebt
+    global sharesOutstanding
+    global equityValue
+    global debtValue
+    global debtWeight
+    global equityWeight
+    global med_taxRate
+    global WACC
+
+    years = pd.to_datetime(fin.loc['asOfDate', :].values).year
+    bs.reset_index(drop=True)
+
+    ebit = fin.loc['EBIT', :].values
+    taxRate = fin.loc['TaxRateForCalcs', :].values
+    taxRate = pd.Series(taxRate, name='Tax Rate(%)', index=years)
+    DA = cf.loc['DepreciationAndAmortization', :].values
+    CapEx = cf.loc['CapitalExpenditure', :].values
+    FCF = ebit * (1 - taxRate) + DA + CapEx
+    FCF = pd.Series(FCF, name='Free Cash Flow', index=years)
+    NI = cf.loc['NetIncome', :].values
+    FCFtoNI = FCF / NI
+    FCFtoNI = pd.Series(FCFtoNI, name='Free Cash Flow / Net Income', index=years)
+    avg_FCFtoNI = np.mean(FCFtoNI)
+    totalRevenue = fin.loc['TotalRevenue', :].values
+    NImargin = NI / totalRevenue
+    NImargin = pd.Series(NImargin, name='Net Income Margin', index=years)
+    avg_NImargin = np.mean(NImargin)
+
+    # fin = fin.append(taxRate)
+    # fin = fin.append(FCFtoNI)
+    # fin = fin.append(NImargin)
+    # cf = cf.append(FCF)
+
+    longTermDebt = bs.loc['LongTermDebt', :].values
+    shortTermDebt = 0
+    debtValue = bs.loc['TotalDebt', :].values
+    costOfDebt = np.abs(cf.loc['RepaymentOfDebt', :].values[-4:] / debtValue)
+    costOfDebt = np.median(costOfDebt)
+
+    sharesOutstanding = bs.loc['OrdinarySharesNumber', :].values
+    equityValue = sharesOutstanding * GetLastClose(ticker)
+
+    debtWeight = debtValue / (debtValue+equityValue)
+    equityWeight = equityValue / (debtValue+equityValue)
+
+    med_taxRate = np.median(taxRate)
+
     WACC = debtWeight*costOfDebt*(1-med_taxRate) + equityWeight*CAPM

@@ -10,7 +10,8 @@ import requests
 import plotly.express as px
 from plotly.subplots import make_subplots
 from io import BytesIO
-from scrape_data import scrape_data, get_key_stats, get_ticker_financials, GetBeta, GetLastClose, totalRevenue, NI, FCF
+from scrape_data import get_key_stats, get_key_stats_yq, get_ticker_financials, get_ticker_financials_yq,GetBeta, GetLastClose
+from scrape_data import totalRevenue, NI, FCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2
 from DCF import create_sample_models
 
 
@@ -19,6 +20,7 @@ yearsToPredict = 5
 marketReturn = 0.1
 tenYTreasury = 0
 GDP = 0.03
+CAPM = 0
 
 # Global Variables
 ticker = ""
@@ -103,14 +105,18 @@ def main(args):
     global tenYTreasury
     global beta
     global stocks
+    global CAPM
     stocks = [ticker, '^GSPC']
     tenYTreasury = GetLastClose('^TNX')/100
     beta = GetBeta(stocks, startDate, endDate)
 
-    bs, fin, cf = get_ticker_financials(ticker)
-    get_key_stats(bs, fin, cf, ticker)
+    CAPM = tenYTreasury + beta * (marketReturn - tenYTreasury)
+
+    bs, fin, cf = get_ticker_financials_yq(ticker)
+    # get_key_stats(bs, fin, cf, ticker, CAPM)
+    get_key_stats_yq(bs, fin, cf, ticker, CAPM)
     
-    modelList = create_sample_models()
+    modelList = create_sample_models(totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2)
     save_to_excel(modelList, bs, fin, cf, Stats, ticker, path)
 
 

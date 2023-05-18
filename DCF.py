@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from variables import totalRevenue, basicDCF
 
 
-def CreateDCFModel(sheetName, avg_NImargin, avg_FCFtoNI, sharesOutstanding,
+def CreateDCFModel(sheetName, totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding,
                    WACC, yearsToPredict, GDP, Stats, TR_est1, TR_est2, multi):
     avg_NImargin = avg_NImargin + np.abs(avg_NImargin)*multi
 
@@ -73,34 +72,34 @@ def CreateDCFModel(sheetName, avg_NImargin, avg_FCFtoNI, sharesOutstanding,
     return DCFmodel, Stats
 
 
-def create_sample_models(avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2):
+def create_sample_models(totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2):
     modelList = []
-    base, Stats = CreateDCFModel('Base', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    base, Stats = CreateDCFModel('Base', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                 yearsToPredict, GDP, Stats, avg_TR_est1, avg_TR_est2, 0)
     modelList.append([base,'Base'])
-    semiOptimistic, Stats = CreateDCFModel('Semi Optimistic', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    semiOptimistic, Stats = CreateDCFModel('Semi Optimistic', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                         yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, 0.05)
     modelList.append([semiOptimistic,'Semi Optimistic'])
-    Optimistic, Stats = CreateDCFModel('Optimistic', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    Optimistic, Stats = CreateDCFModel('Optimistic', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                         yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, 0.075)
     modelList.append([Optimistic,'Optimistic'])
-    superOptimistic, Stats = CreateDCFModel('Super Optimistic', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    superOptimistic, Stats = CreateDCFModel('Super Optimistic', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                         yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, 0.1)
     modelList.append([superOptimistic,'Super Optimistic'])
-    semiPessimistic, Stats = CreateDCFModel('Semi Pessimistic', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    semiPessimistic, Stats = CreateDCFModel('Semi Pessimistic', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                         yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, -0.05)
     modelList.append([semiPessimistic,'Semi Pessimistic'])
-    Pessimistic, Stats = CreateDCFModel('Pessimistic', avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
+    Pessimistic, Stats = CreateDCFModel('Pessimistic', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                         yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, -0.075)
     modelList.append([Pessimistic,'Pessimistic'])
 
-    twelveRR, Stats = CreateDCFModel('12% Required Return', avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.12,
+    twelveRR, Stats = CreateDCFModel('12% Required Return', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.12,
                                         yearsToPredict, GDP, Stats, avg_TR_est1, avg_TR_est2, 0)
     modelList.append([twelveRR,'12% Required Return'])
-    tenRR, Stats = CreateDCFModel('10% Required Return', avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.1,
+    tenRR, Stats = CreateDCFModel('10% Required Return', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.1,
                                         yearsToPredict, GDP, Stats, avg_TR_est1, avg_TR_est2, 0)
     modelList.append([tenRR,'10% Required Return'])
-    sevenRR, Stats = CreateDCFModel('7.5% Required Return', avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.075,
+    sevenRR, Stats = CreateDCFModel('7.5% Required Return', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, 0.075,
                                         yearsToPredict, GDP, Stats, avg_TR_est1, avg_TR_est2, 0)
     modelList.append([sevenRR,'7.5% Required Return'])
 
