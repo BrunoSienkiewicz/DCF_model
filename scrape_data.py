@@ -7,13 +7,14 @@ import pandas as pd
 from pandas_datareader import data as pdr
 import datetime as dt
 from bs4 import BeautifulSoup
+from lxml import etree
 import requests
 
 
 # Key Statistics
 ebit = 0
-incomeBeforeTax = 0
-taxExpense = 0
+# incomeBeforeTax = 0
+# taxExpense = 0
 taxRate = 0
 DA = 0
 CapEx = 0
@@ -39,7 +40,6 @@ debtValue = 0
 debtWeight = 0 
 equityWeight = 0
 med_taxRate = 0
-CAPM = 0
 WACC = 0
 
 
@@ -60,30 +60,38 @@ def GetLastClose(symbol):
     return Data[-1]
 
 
-def scrape_data():
+def scrape_data(ticker):
     header = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36'}
-
-    url_s = f"https://finance.yahoo.com/quote/{ticker}/key-statistics?p={ticker}"
-    res_s = requests.get(url_s, headers=header)
-    soup_s = BeautifulSoup(res_s.text, 'html.parser')
-    pattern = re.compile(r'\s--\sData\s--\s')
-    script_data = soup_s.find('script', text=pattern).contents[0]
-    start = script_data.find('context')-2
-    json_data = json.loads(script_data[start:-12])
-    defaultKeyStatistics = json_data['context']['dispatcher']['stores']['QuoteSummaryStore']['defaultKeyStatistics']
-    financialData = json_data['context']['dispatcher']['stores']['QuoteSummaryStore']['financialData']
 
     url_a = f"https://finance.yahoo.com/quote/{ticker}/analysis?p={ticker}"
     res_a = requests.get(url_a, headers=header)
     soup_a = BeautifulSoup(res_a.text, 'html.parser')
-    pattern = re.compile(r'\s--\sData\s--\s')
-    script_data = soup_a.find('script', text=pattern).contents[0]
-    start = script_data.find('context')-2
-    json_data = json.loads(script_data[start:-12])
-    analystPrediction = json_data['context']['dispatcher']['stores']['QuoteSummaryStore']
+    dom_a = etree.HTML(str(soup_a))
+    analystPrediction = {
+        'avg': [dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[2]/td[4]')[0].text,
+                dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[2]/td[5]')[0].text],
+        'low': [dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[3]/td[4]')[0].text,
+                dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[3]/td[5]')[0].text],
+        'high': [dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[4]/td[4]')[0].text,
+                 dom_a.xpath('//*[@id="Col1-0-AnalystLeafPage-Proxy"]/section/table[2]/tbody/tr[4]/td[5]')[0].text]
+        }
+    
+    def transform_to_number(string):
+        endings = {
+            'K': 1000,
+            'M': 1000000,
+            'B': 1000000000,
+        }
 
-    return defaultKeyStatistics, financialData, analystPrediction
+        if string[-1] in endings:
+            return float(string[:-1]) * endings[string[-1]]
+        else:
+            return float(string)
+        
+    analystPrediction = {k: [transform_to_number(v[0]), transform_to_number(v[1])] for k, v in analystPrediction.items()}
+
+    return analystPrediction
 
 
 def get_ticker_financials(ticker):
@@ -104,10 +112,8 @@ def get_ticker_financials_yq(ticker):
     return bs, fin, cf
 
 
-def get_key_stats(bs, fin, cf, ticker, CAPM):
+def get_key_stats(bs, fin, cf, ticker, CAPM, analystPrediction):
     global ebit
-    global incomeBeforeTax
-    global taxExpense
     global taxRate
     global DA
     global CapEx
@@ -158,12 +164,12 @@ def get_key_stats(bs, fin, cf, ticker, CAPM):
     fin = fin.append(NImargin)
     cf = cf.append(FCF)
 
-    # avg_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['avg']['raw']
-    # avg_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['avg']['raw']
-    # low_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
-    # low_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
-    # high_TR_est1 = analystPrediction['earningsTrend']['trend'][2]['revenueEstimate']['low']['raw']
-    # high_TR_est2 = analystPrediction['earningsTrend']['trend'][3]['revenueEstimate']['low']['raw']
+    avg_TR_est1 = analystPrediction['avg'][0]
+    avg_TR_est2 = analystPrediction['avg'][1]
+    low_TR_est1 = analystPrediction['low'][0]
+    low_TR_est2 = analystPrediction['low'][1]
+    high_TR_est1 = analystPrediction['high'][0]
+    high_TR_est2 = analystPrediction['high'][1]
 
     try:
         shortTermDebt = bs.loc['Short Long Term Debt', :]
@@ -193,7 +199,7 @@ def get_key_stats(bs, fin, cf, ticker, CAPM):
     WACC = debtWeight*costOfDebt*(1-med_taxRate) + equityWeight*CAPM
 
 
-def get_key_stats_yq(bs, fin, cf, ticker, CAPM):
+def get_key_stats_yq(bs, fin, cf, ticker, CAPM, analystPrediction):
     global ebit
     global incomeBeforeTax
     global taxExpense
@@ -248,6 +254,13 @@ def get_key_stats_yq(bs, fin, cf, ticker, CAPM):
     # fin = fin.append(NImargin)
     # cf = cf.append(FCF)
 
+    avg_TR_est1 = analystPrediction['avg'][0]
+    avg_TR_est2 = analystPrediction['avg'][1]
+    low_TR_est1 = analystPrediction['low'][0]
+    low_TR_est2 = analystPrediction['low'][1]
+    high_TR_est1 = analystPrediction['high'][0]
+    high_TR_est2 = analystPrediction['high'][1]
+
     longTermDebt = bs.loc['LongTermDebt', :].values
     shortTermDebt = 0
     debtValue = bs.loc['TotalDebt', :].values
@@ -263,3 +276,21 @@ def get_key_stats_yq(bs, fin, cf, ticker, CAPM):
     med_taxRate = np.median(taxRate)
 
     WACC = debtWeight*costOfDebt*(1-med_taxRate) + equityWeight*CAPM
+    WACC = WACC[-1]
+
+    key_stats = {name: value for name, value in globals().items() 
+                if not name.startswith('__') 
+                and not value.__class__.__name__ == 'function' 
+                and not value.__class__.__name__ == 'module'
+                and not value.__class__.__name__ == 'type'
+                }
+    
+    for key, value in key_stats.items():
+        if isinstance(value, np.ndarray):
+            key_stats[key] = value.tolist()
+        elif isinstance(value, pd.Series):
+            key_stats[key] = value.to_dict()
+
+    with open(f'./Models/{ticker}_key_stats.json', 'w') as f:
+        json.dump(key_stats, f, indent=4)
+

@@ -72,8 +72,18 @@ def CreateDCFModel(sheetName, totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI,
     return DCFmodel, Stats
 
 
-def create_sample_models(totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2):
+def create_sample_models(basicDCF, yearsToPredict, GDP, Stats, key_stats):
     modelList = []
+    totalRevenue = key_stats['totalRevenue']
+    avg_NImargin = key_stats['avg_NImargin']
+    avg_FCFtoNI = key_stats['avg_FCFtoNI']
+    sharesOutstanding = key_stats['sharesOutstanding']
+    high_TR_est1 = key_stats['high_TR_est1']
+    high_TR_est2 = key_stats['high_TR_est2']
+    avg_TR_est1 = key_stats['avg_TR_est1']
+    avg_TR_est2 = key_stats['avg_TR_est2']
+    WACC = key_stats['WACC']
+
     base, Stats = CreateDCFModel('Base', totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC,
                                 yearsToPredict, GDP, Stats, avg_TR_est1, avg_TR_est2, 0)
     modelList.append([base,'Base'])

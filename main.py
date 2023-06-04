@@ -1,17 +1,14 @@
-import re
+import os
 import sys
 import json
 import numpy as np
 import yfinance as yf
 import pandas as pd
 import datetime as dt
-from bs4 import BeautifulSoup
-import requests
 import plotly.express as px
 from plotly.subplots import make_subplots
 from io import BytesIO
-from scrape_data import get_key_stats, get_key_stats_yq, get_ticker_financials, get_ticker_financials_yq,GetBeta, GetLastClose
-from scrape_data import totalRevenue, NI, FCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2
+from scrape_data import get_key_stats, get_key_stats_yq, get_ticker_financials, get_ticker_financials_yq,GetBeta, GetLastClose, scrape_data
 from DCF import create_sample_models
 
 
@@ -25,7 +22,7 @@ CAPM = 0
 # Global Variables
 ticker = ""
 # path = 'E:\\Python\\DCF_model\Models\\'
-path = '.\\Models\\'
+path = './Models/'
 endDate = dt.datetime.now()
 startDate = endDate - dt.timedelta(days=365 * yearsToPredict)
 stocks = []
@@ -38,25 +35,33 @@ basicDCF = pd.DataFrame(data=None, columns=columns)
 statsColumns = ['Average Net Income Margin', 'Average Total Revenue Growth','Average FCF Growth', 'WACC', 'Fair Share Price']
 Stats = pd.DataFrame(data=None, columns=statsColumns)
 
+analystPrediction = {}
 
-def save_to_excel(modelList, bs, fin, cf):
-    with pd.ExcelWriter(path + "{}.xlsx".format(ticker), engine='xlsxwriter') as writer:
+
+def save_to_excel(modelList, bs, fin, cf, key_stats, path):
+    currentYear = dt.datetime.now().year
+    currentQuarter = (dt.datetime.now().month - 1) // 3 + 1
+
+    with pd.ExcelWriter(path + f"{ticker}_{currentYear}_Q{currentQuarter}.xlsx", engine='xlsxwriter') as writer:
         bs.to_excel(writer, sheet_name="balance_sheet")
         fin.to_excel(writer, sheet_name="income_statement")
         cf.to_excel(writer, sheet_name="cash_flow")
         Stats.to_excel(writer, sheet_name="Sensitivity Analysis")
         for model in modelList:
+            totalRevenue = key_stats['totalRevenue']
+            NI = key_stats['NI']
+            FCF = key_stats['FCF']
+
             model[0].to_excel(writer, sheet_name="{}".format(model[1]))
             chartColumns = [i for i in range(-len(totalRevenue) + 1, yearsToPredict + 1)]
             df1 = pd.DataFrame(data=None, columns=chartColumns)
             df2 = pd.DataFrame(data=None, columns=chartColumns)
 
-            past_TR = totalRevenue.tolist()
-            past_NI = NI.tolist()
-            past_FCF = FCF.tolist()
-            past_FCF.reverse()
-            past_NI.reverse()
-            past_TR.reverse()
+            past_TR = totalRevenue
+            past_NI = NI
+            past_FCF = list(FCF.values())
+            if (len(past_FCF) < yearsToPredict + 1):
+                past_FCF = [np.nan] + past_FCF
             future_TR = model[0].loc['Total Revenue', :].tolist()
             future_NI = model[0].loc['Net Income', :].tolist()
             future_FCF = model[0].loc['Free Cash Flow', :].tolist()
@@ -91,16 +96,19 @@ def save_to_excel(modelList, bs, fin, cf):
 
 
 def main(args):
-    # if len(args) != 1:
-    #     print("Usage: python DCF.py <ticker>")
-    #     sys.exit(1)
+    if len(args) != 2:
+        print("Usage: python main.py <ticker> <yearsToPredict>")
+        sys.exit(1)
     
-    # global ticker
-    # ticker = args[0]
-
     global ticker
-    ticker = 'MSFT'
+    global yearsToPredict
+    ticker = args[0]
+    yearsToPredict = int(args[1])
+
     yf.pdr_override()
+
+    global analystPrediction
+    analystPrediction = scrape_data(ticker)
 
     global tenYTreasury
     global beta
@@ -113,11 +121,17 @@ def main(args):
     CAPM = tenYTreasury + beta * (marketReturn - tenYTreasury)
 
     bs, fin, cf = get_ticker_financials_yq(ticker)
-    # get_key_stats(bs, fin, cf, ticker, CAPM)
-    get_key_stats_yq(bs, fin, cf, ticker, CAPM)
+    get_key_stats_yq(bs, fin, cf, ticker, CAPM, analystPrediction)
+
+    key_stats = {}
+    with open(f'./Models/{ticker}_key_stats.json') as json_file:
+        key_stats = json.load(json_file)
     
-    modelList = create_sample_models(totalRevenue, basicDCF, avg_NImargin, avg_FCFtoNI, sharesOutstanding, WACC, yearsToPredict, GDP, Stats, high_TR_est1, high_TR_est2, avg_TR_est1, avg_TR_est2)
-    save_to_excel(modelList, bs, fin, cf, Stats, ticker, path)
+    global Stats
+    modelList, Stats = create_sample_models(basicDCF, yearsToPredict, GDP, Stats, key_stats)
+    save_to_excel(modelList, bs, fin, cf, key_stats, path)
+
+    os.remove(f'./Models/{ticker}_key_stats.json')
 
 
 if __name__ == "__main__":
